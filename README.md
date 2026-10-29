@@ -1,6 +1,8 @@
-# PK Hub
+# Hub
 
 Portail centralisé regroupant mes projets web, applications et études de cas.
+
+Lien : https://ayoubhry.github.io/hub/
 
 ## 🚀 Projets inclus
 
