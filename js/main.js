@@ -3,6 +3,7 @@ const S = window.SITE, P = S.projects;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const url = p => `https://github.com/${S.gh}/${p.repo}`;
+const target = p => (p.open === 'live' && p.live) ? p.live : url(p);   // destination de « A »
 const REPOS = `https://github.com/${S.gh}?tab=repositories`;
 const NAV = P.length + 1;               // projets + « Tous les projets »
 const ls = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch (_) {} };
@@ -12,7 +13,7 @@ const DOCK = [
   { id: 'apropos', t: 'À propos', i: 'user', c: '#f08a1c' },
   { id: 'competences', t: 'Compétences', i: 'list', c: '#2fb34a' },
   { id: 'contact', t: 'Contact', i: 'mail', c: '#ee3a43' },
-  { id: 'github', t: 'GitHub', i: 'code', c: '#2b5fd0', href: `https://github.com/${S.gh}` },
+  { id: 'github', t: 'GitHub', i: 'github', c: 'var(--fg)', href: `https://github.com/${S.gh}` },
   { id: 'cv', t: 'CV', i: 'doc', c: '#12b5d4', href: S.cv },
   { id: 'commandes', t: 'Commandes', i: 'pad' },
   { id: 'plein', t: 'Plein écran', i: 'screen', act: fullscreen },
@@ -21,7 +22,7 @@ const DOCK = [
 ];
 
 let view = 'projets', zone = 'row', sel = 0, di = 0, oi = 0;
-let launched = -1, optsOn = false, sleeping = false, ac;
+let launched = -1, mode = '', goTimer, optsOn = false, sleeping = false, ac;
 let soundOn = ls('sound') !== 'off', pref = ls('theme') || 'auto';
 
 /* ---------- sons (synthétisés, très discrets) ---------- */
@@ -29,6 +30,7 @@ function snd(f = 800) {
   if (!soundOn) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
     const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
     o.frequency.value = f; g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .07);
@@ -84,29 +86,44 @@ function go(id) {
 
 /* ---------- lancement d'un projet : la tuile s'agrandit en plein écran ---------- */
 const clip = r => `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 12px)`;
-function launch(i) {
-  const p = P[i], L = $('#launch');
+function launch(i, m) {          // m = 'go' : écran d'ouverture puis redirection | 'info' : page de détails
+  const p = P[i], L = $('#launch'), go = m === 'go';
   L.style.setProperty('--a', p.bg[0]); L.style.setProperty('--b', p.bg[1]); L.className = p.light ? 'light' : '';
-  L.innerHTML = `<div class="lc"><img class="limg ${p.fit}" src="${p.img}" alt="${p.name}">${p.fit === 'cover' ? '' : `<h1>${p.name}</h1>`}<p>${p.desc}</p>
-    <div class="tags">${p.tags.map(t => `<span>${t}</span>`).join('')}</div>
-    <div class="acts"><a class="btn main" href="${url(p)}" target="_blank" rel="noopener">Voir sur GitHub</a>${p.live ? `<a class="btn" href="${p.live}" target="_blank" rel="noopener">Ouvrir le site</a>` : ''}</div></div>`;
+  const head = `<img class="limg ${p.fit}" src="${p.img}" alt="${p.name}">${p.fit === 'cover' ? '' : `<h1>${p.name}</h1>`}`;
+  L.innerHTML = `<div class="lc">${head}` + (go
+    ? `<p class="opening"><i class="spin"></i>Ouverture de ${new URL(target(p)).hostname}…</p></div>`
+    : `<p>${p.desc}</p><div class="tags">${p.tags.map(t => `<span>${t}</span>`).join('')}</div>
+       <div class="acts"><a class="btn main" href="${url(p)}" target="_blank" rel="noopener">Voir sur GitHub</a>${p.live ? `<a class="btn" href="${p.live}" target="_blank" rel="noopener">Ouvrir le site</a>` : ''}</div></div>`);
   const from = clip(T[i].getBoundingClientRect());
-  L.hidden = false; launched = i;
+  L.getAnimations().forEach(a => a.cancel());
+  L.hidden = false; launched = i; mode = m; document.body.dataset.launch = p.light ? 'light' : 'dark';
   L.animate([{ clipPath: from }, { clipPath: 'inset(0 0 0 0 round 0px)' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  if (go) goTimer = setTimeout(() => { location.href = target(p); }, 1100);
 }
 function unlaunch() {
+  clearTimeout(goTimer);
   const L = $('#launch'), to = clip(T[launched].getBoundingClientRect()); launched = -1;
+  delete document.body.dataset.launch;
   L.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
-  L.animate([{ clipPath: 'inset(0 0 0 0 round 0px)' }, { clipPath: to }], { duration: 350, easing: 'ease-in', fill: 'forwards' })
-    .onfinish = () => { if (launched < 0) L.hidden = true; };
+  const a = L.animate([{ clipPath: 'inset(0 0 0 0 round 0px)' }, { clipPath: to }], { duration: 350, easing: 'ease-in', fill: 'forwards' });
+  a.onfinish = () => { if (launched < 0) L.hidden = true; a.cancel(); };   // cancel : évite un rognage à la prochaine ouverture
 }
 
 /* ---------- panneau Options (+) ---------- */
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); }
+function copyLink(p) {
+  const u = target(p);
+  (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Lien copié'), () => toast(u));
+}
+const pageItems = () => $$('.page:not([hidden]) a.rl, .page:not([hidden]) button.rl');
 function optItems() {
   const p = P[sel];
-  return [['Voir sur GitHub', () => open(url(p), '_blank', 'noopener')],
-    ...(p.live ? [['Ouvrir le site', () => open(p.live, '_blank', 'noopener')]] : []),
-    ['Copier le lien', () => navigator.clipboard && navigator.clipboard.writeText(url(p))],
+  return [['Ouvrir', () => launch(sel, 'go')],
+    ...(p.live && target(p) !== p.live ? [['Ouvrir le site', () => open(p.live, '_blank', 'noopener')]] : []),
+    ...(target(p) !== url(p) ? [['Voir sur GitHub', () => open(url(p), '_blank', 'noopener')]] : []),
+    ['Détails', () => launch(sel, 'info')],
+    ['Copier le lien', () => copyLink(p)],
     ['Fermer', () => {}]];
 }
 const renderOpts = () => $('#optl').innerHTML = optItems().map((x, i) => `<li class="${i === oi ? 'on' : ''}" data-i="${i}">${x[0]}</li>`).join('');
@@ -122,8 +139,8 @@ $('#scr').addEventListener('click', e => { if (optsOn && !e.target.closest('#ko'
 /* ---------- actions A / B ---------- */
 function act() {
   snd(1000);
-  if (launched >= 0) open(url(P[launched]), '_blank', 'noopener');
-  else if (zone === 'row' && view === 'projets') sel < P.length ? launch(sel) : open(REPOS, '_blank', 'noopener');
+  if (launched >= 0) { if (mode === 'info') open(url(P[launched]), '_blank', 'noopener'); }
+  else if (zone === 'row' && view === 'projets') sel < P.length ? launch(sel, 'go') : open(REPOS, '_blank', 'noopener');
   else if (zone === 'dock') { go(DOCK[di].id); paint(); }
 }
 function back() {
@@ -136,7 +153,7 @@ function back() {
 $('#ka').onclick = act; $('#kb').onclick = back; $('#ko').onclick = openOpts;
 
 addEventListener('keydown', e => {
-  if (sleeping) { wake(); e.preventDefault(); return; }
+  if (sleeping) { if (!e.repeat) wake(); e.preventDefault(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (optsOn) {
@@ -148,6 +165,12 @@ addEventListener('keydown', e => {
   }
   const ae = document.activeElement, idle = launched < 0;
   const free = !ae || ae === document.body || ae.matches('.d,.tile,.key,.av');
+  const li = ae && ae.closest && ae.closest('.page a.rl, .page button.rl');
+  if (li && (k === 'arrowup' || k === 'arrowdown')) {   // navigation dans les listes (Contact, Paramètres)
+    const it = pageItems(), n = it.indexOf(li) + (k === 'arrowdown' ? 1 : -1);
+    if (n >= it.length) { li.blur(); zone = 'dock'; paint(); } else if (n >= 0) it[n].focus();
+    snd(700); e.preventDefault(); return;
+  }
   if (k.startsWith('arrow') || (k === ' ' && free)) e.preventDefault();
   if (free && ae && ae.blur && k.startsWith('arrow')) ae.blur();
   if ((k === 'arrowright' || k === 'arrowleft') && idle) {
@@ -157,6 +180,9 @@ addEventListener('keydown', e => {
     e.preventDefault();
   } else if (k === 'arrowdown' && zone === 'row' && idle) { zone = 'dock'; paint(); snd(700); e.preventDefault(); }
   else if (k === 'arrowup' && zone === 'dock' && view === 'projets' && idle) { zone = 'row'; paint(); snd(700); e.preventDefault(); }
+  else if (k === 'arrowup' && zone === 'dock' && view !== 'projets' && idle) {
+    const it = pageItems(); if (it.length) { it[it.length - 1].focus(); zone = 'page'; paint(); snd(700); }
+  }
   else if ((k === 'enter' || k === ' ' || k === 'a') && free) { act(); e.preventDefault(); }
   else if (k === 'o' || k === '+' || k === '=') openOpts();
   else if (k === 'escape' || k === 'backspace' || k === 'b') back();
@@ -164,6 +190,7 @@ addEventListener('keydown', e => {
 document.addEventListener('click', e => { const b = e.target.closest('.d,.tile,.key,.av'); if (b) b.blur(); }, true);
 $$('.d').forEach((b, i) => b.addEventListener('focus', () => { if (b.matches(':focus-visible')) { di = i; zone = 'dock'; paint(); } }));
 T.forEach((t, i) => { if (i < NAV) t.addEventListener('focus', () => { if (t.matches(':focus-visible')) select(i, true); }); });
+$('#row').addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
 addEventListener('resize', label);
 document.fonts && document.fonts.ready.then(label);
 
@@ -173,7 +200,8 @@ function wake() { sleeping = false; $('#sleep').classList.remove('on'); }
 $('#sleep').onclick = wake;
 function fullscreen() {
   const el = document.documentElement;
-  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen && el.requestFullscreen();
+  const f = document.fullscreenElement ? document.exitFullscreen() : (el.requestFullscreen && el.requestFullscreen());
+  if (f && f.catch) f.catch(() => {});
 }
 
 /* ---------- paramètres : thème et sons ---------- */
@@ -184,8 +212,8 @@ function theme() {
   $('#snd').setAttribute('aria-checked', soundOn);
   $('meta[name=theme-color]').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
 }
-$('#set').onclick = e => {
-  const b = e.target.closest('button'); if (!b) return;
+$('#v-parametres').onclick = e => {
+  const b = e.target.closest('button.rl'); if (!b) return;
   if (b.id === 'snd') { soundOn = !soundOn; ls('sound', soundOn ? 'on' : 'off'); }
   else { pref = b.dataset.t; ls('theme', pref); }
   theme(); snd(900);
@@ -198,6 +226,7 @@ function tick() {
   $('#clock').textContent = t; $('#sclock').textContent = t;
 }
 function bat(pct, charging) {
+  $('#bat').hidden = false;      // affichée seulement si le navigateur fournit la vraie valeur
   $('#batv').textContent = pct + '%';
   $('#bfill').setAttribute('width', 20 * pct / 100);
   $('.bat').style.color = charging ? '#2fb34a' : '';
@@ -208,6 +237,14 @@ addEventListener('online', net); addEventListener('offline', net);
 if (navigator.getBattery) navigator.getBattery().then(b => {
   const u = () => bat(Math.round(b.level * 100), b.charging); u(); b.onlevelchange = b.onchargingchange = u;
 }).catch(() => {});
+
+/* ---------- compétences et retour arrière du navigateur ---------- */
+$('#skills').innerHTML = (S.skills || []).map(k => `<div class="sk"><h3>${k.t}</h3><p>${k.n || ''}</p><div class="tags">${k.items.map(x => `<span>${x}</span>`).join('')}</div></div>`).join('');
+addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  clearTimeout(goTimer); launched = -1; delete document.body.dataset.launch;
+  const L = $('#launch'); L.getAnimations().forEach(a => a.cancel()); L.hidden = true;
+});
 
 /* ---------- démarrage ---------- */
 theme(); select(0, true);
