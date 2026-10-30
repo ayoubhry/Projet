@@ -6,13 +6,13 @@ Portail centralisé regroupant mes projets web, applications et études de cas.
 
 ## 🚀 Projets inclus
 
-- **Portfolio** : Présentation personnelle et vitrine de compétences.
+**Portfolio** : Présentation personnelle et vitrine de compétences.
 > Lien : https://ayoubhry.github.io/portfolio/
-- **Docs** : Espace de documentation des projets.
+**Docs** : Espace de documentation des projets.
 > Lien : https://ayoubhry.github.io/docs/
-- **McDo Tracker** : Application de suivi et d'analyse de données.
+**McDo Tracker** : Application de suivi et d'analyse de données.
 > Lien : https://github.com/ayoubhry/mcdo-tracker
-- **Xbox Breakdown** : Étude visuelle et technique de composants.
+**Xbox Breakdown** : Étude visuelle et technique de composants.
 > Lien : https://ayoubhry.github.io/Xbox-Breakdown/
 
 ## 📁 Structure
