@@ -166,3 +166,5 @@ body[data-launch=light] .key i{background:#2a2000;color:#fff}
 #skills .sk{padding:calc(var(--u)*1.5) calc(var(--u)*2.6)}
 #skills .tags{gap:6px}
 #skills .tags span{font-size:.76em;padding:.05em .75em}
+
+.key i{line-height:0}

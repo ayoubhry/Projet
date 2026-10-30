@@ -13,21 +13,18 @@ const DOCK = [
   { id: 'apropos', t: 'À propos', i: 'user', c: '#f08a1c' },
   { id: 'competences', t: 'Compétences', i: 'list', c: '#2fb34a' },
   { id: 'contact', t: 'Contact', i: 'mail', c: '#ee3a43' },
-  { id: 'github', t: 'GitHub', i: 'github', c: 'var(--fg)', href: `https://github.com/${S.gh}` },
-  { id: 'cv', t: 'CV', i: 'doc', c: '#12b5d4', href: S.cv },
   { id: 'commandes', t: 'Commandes', i: 'pad' },
-  { id: 'plein', t: 'Plein écran', i: 'screen', act: fullscreen },
-  { id: 'parametres', t: 'Paramètres', i: 'gear' },
+  { id: 'parametres', t: 'Paramètres', i: 'gear', act: () => window.openSettings() },
   { id: 'veille', t: 'Veille', i: 'power', act: sleep }
 ];
 
 let view = 'projets', zone = 'row', sel = 0, di = 0, oi = 0;
 let launched = -1, mode = '', goTimer, optsOn = false, sleeping = false, ac;
-let soundOn = ls('sound') !== 'off', pref = ls('theme') || 'auto';
+const D = ms => PREFS.get('anim') ? ms : 1;     // durées des animations (réglage « Animations »)
 
 /* ---------- sons (synthétisés, très discrets) ---------- */
 function snd(f = 800) {
-  if (!soundOn) return;
+  if (!PREFS.get('sound')) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === 'suspended') ac.resume();
@@ -97,15 +94,15 @@ function launch(i, m) {          // m = 'go' : écran d'ouverture puis redirecti
   const from = clip(T[i].getBoundingClientRect());
   L.getAnimations().forEach(a => a.cancel());
   L.hidden = false; launched = i; mode = m; document.body.dataset.launch = p.light ? 'light' : 'dark';
-  L.animate([{ clipPath: from }, { clipPath: 'inset(0 0 0 0 round 0px)' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  L.animate([{ clipPath: from }, { clipPath: 'inset(0 0 0 0 round 0px)' }], { duration: D(450), easing: 'cubic-bezier(.2,.8,.2,1)' });
   if (go) goTimer = setTimeout(() => { location.href = target(p); }, 1100);
 }
 function unlaunch() {
   clearTimeout(goTimer);
   const L = $('#launch'), to = clip(T[launched].getBoundingClientRect()); launched = -1;
   delete document.body.dataset.launch;
-  L.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
-  const a = L.animate([{ clipPath: 'inset(0 0 0 0 round 0px)' }, { clipPath: to }], { duration: 350, easing: 'ease-in', fill: 'forwards' });
+  L.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: D(120), fill: 'forwards' });
+  const a = L.animate([{ clipPath: 'inset(0 0 0 0 round 0px)' }, { clipPath: to }], { duration: D(350), easing: 'ease-in', fill: 'forwards' });
   a.onfinish = () => { if (launched < 0) L.hidden = true; a.cancel(); };   // cancel : évite un rognage à la prochaine ouverture
 }
 
@@ -153,6 +150,8 @@ function back() {
 $('#ka').onclick = act; $('#kb').onclick = back; $('#ko').onclick = openOpts;
 
 addEventListener('keydown', e => {
+  const st = document.documentElement.dataset.stage;
+  if ((st && st !== 'menu') || document.body.dataset.settings) return;          // écran de chargement / d'accueil
   if (sleeping) { if (!e.repeat) wake(); e.preventDefault(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
@@ -198,31 +197,11 @@ document.fonts && document.fonts.ready.then(label);
 function sleep() { sleeping = true; $('#sleep').classList.add('on'); }
 function wake() { sleeping = false; $('#sleep').classList.remove('on'); }
 $('#sleep').onclick = wake;
-function fullscreen() {
-  const el = document.documentElement;
-  const f = document.fullscreenElement ? document.exitFullscreen() : (el.requestFullscreen && el.requestFullscreen());
-  if (f && f.catch) f.catch(() => {});
-}
-
-/* ---------- paramètres : thème et sons ---------- */
-const mq = matchMedia('(prefers-color-scheme: dark)');
-function theme() {
-  document.documentElement.dataset.theme = pref === 'auto' ? (mq.matches ? 'dark' : 'light') : pref;
-  $$('#set [data-t]').forEach(b => b.setAttribute('aria-checked', b.dataset.t === pref));
-  $('#snd').setAttribute('aria-checked', soundOn);
-  $('meta[name=theme-color]').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-}
-$('#v-parametres').onclick = e => {
-  const b = e.target.closest('button.rl'); if (!b) return;
-  if (b.id === 'snd') { soundOn = !soundOn; ls('sound', soundOn ? 'on' : 'off'); }
-  else { pref = b.dataset.t; ls('theme', pref); }
-  theme(); snd(900);
-};
-mq.addEventListener && mq.addEventListener('change', theme);
+PREFS.on(k => { if (k === 'clock24' || k === '*') tick(); });
 
 /* ---------- barre d'état : heure, Wi-Fi, batterie ---------- */
 function tick() {
-  const t = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const t = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: !PREFS.get('clock24') });
   $('#clock').textContent = t; $('#sclock').textContent = t;
 }
 function bat(pct, charging) {
@@ -246,8 +225,10 @@ addEventListener('pageshow', e => {
   const L = $('#launch'); L.getAnimations().forEach(a => a.cancel()); L.hidden = true;
 });
 
+window.APP = { go, snd, toast };
+
 /* ---------- démarrage ---------- */
-theme(); select(0, true);
+select(0, true);
 const h = location.hash.slice(1);
 if (DOCK.some(d => d.id === h && !d.href && !d.act && d.id !== 'projets')) go(h);
 })();

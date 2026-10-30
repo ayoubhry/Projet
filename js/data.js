@@ -30,6 +30,5 @@ window.SITE = {
     { t: 'Python', n: 'Serveur, scraping et carte dans Mcdo Tracker', items: ['Flask', 'Playwright', 'API REST', 'Leaflet'] },
     { t: 'Applications Windows', n: 'Xbox Breakdown, en développement', items: ['C#', '.NET', 'SQLite'] },
     { t: 'BTS SIO option SISR', n: "Les 3 blocs de compétences du diplôme", items: ['Support et services informatiques', 'Administration systèmes et réseaux', 'Cybersécurité'] }
-  ],
-  cv: 'https://ayoubhry.github.io/portfolio/assets/cv/CV_Houraoui.pdf'
+  ]
 };
