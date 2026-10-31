@@ -5,6 +5,15 @@
    open  : où mène « A » / le clic sur la tuile. Par défaut le dépôt GitHub ; 'live' = le site du projet (si `live` existe) */
 window.SITE = {
   gh: 'ayoubhry',
+  /* Sons : dépose tes fichiers dans assets/audio/ (.m4a ou .mp3 ; si un fichier manque, un petit bip est joué à la place).
+     home = « A » sur l'accueil · settings = ouverture des paramètres · launch = choix d'un projet */
+  sounds: {
+    home: ['assets/audio/home.m4a', 'assets/audio/home.mp3'],
+    settings: ['assets/audio/settings.m4a', 'assets/audio/settings.mp3'],
+    launch: ['assets/audio/launch.m4a', 'assets/audio/launch.mp3'],
+    volume: 0.8,
+    debug: true            // affiche un message si un son est introuvable ou refusé (mets false une fois tout réglé)
+  },
   bootMs: 3600,              // durée de l'écran de chargement (ms)
   recent: 'Xbox-Breakdown',  // projet « récent » par défaut (remplacé automatiquement par le dépôt mis à jour le plus récemment)
   projects: [

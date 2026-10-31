@@ -29,7 +29,7 @@ function snd(f = 800) {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === 'suspended') ac.resume();
     const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
-    o.frequency.value = f; g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
+    o.frequency.value = f; g.gain.setValueAtTime(.09, t); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .07);
   } catch (_) {}
 }
@@ -54,7 +54,7 @@ function select(i, quiet) {
 
 /* ---------- dock ---------- */
 $('#dock').innerHTML = DOCK.map((d, i) => `<button class="d${d.f ? ' fill' : ''}" ${d.c ? `style="--c:${d.c}"` : ''} data-i="${i}" aria-label="${d.t}"><svg class="ic"><use href="#i-${d.i}"/></svg></button>`).join('');
-$$('.d').forEach(b => b.onclick = () => { di = +b.dataset.i; zone = 'dock'; snd(1000); go(DOCK[di].id); paint(); });
+$$('.d').forEach(b => b.onclick = () => { di = +b.dataset.i; zone = 'dock'; if (DOCK[di].id !== 'parametres') snd(1000); go(DOCK[di].id); paint(); });
 $('#u-me').onclick = () => { zone = 'dock'; go('apropos'); };
 
 function label() {
@@ -95,10 +95,11 @@ function launch(i, m) {          // m = 'go' : écran d'ouverture puis redirecti
   L.getAnimations().forEach(a => a.cancel());
   L.hidden = false; launched = i; mode = m; document.body.dataset.launch = p.light ? 'light' : 'dark';
   L.animate([{ clipPath: from }, { clipPath: 'inset(0 0 0 0 round 0px)' }], { duration: D(450), easing: 'cubic-bezier(.2,.8,.2,1)' });
-  if (go) goTimer = setTimeout(() => { location.href = target(p); }, 1100);
+  SFX.play('launch');
+  if (go) goTimer = setTimeout(() => { location.href = target(p); }, Math.min(2500, Math.max(1100, SFX.duration('launch') + 150)));
 }
 function unlaunch() {
-  clearTimeout(goTimer);
+  clearTimeout(goTimer); SFX.stop('launch');
   const L = $('#launch'), to = clip(T[launched].getBoundingClientRect()); launched = -1;
   delete document.body.dataset.launch;
   L.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: D(120), fill: 'forwards' });
@@ -108,7 +109,7 @@ function unlaunch() {
 
 /* ---------- panneau Options (+) ---------- */
 let toastT;
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); }
+function toast(msg, ms = 1800) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
 function copyLink(p) {
   const u = target(p);
   (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Lien copié'), () => toast(u));
@@ -135,7 +136,9 @@ $('#scr').addEventListener('click', e => { if (optsOn && !e.target.closest('#ko'
 
 /* ---------- actions A / B ---------- */
 function act() {
-  snd(1000);
+  const tileLaunch = launched < 0 && zone === 'row' && view === 'projets' && sel < P.length;
+  const toSettings = launched < 0 && zone === 'dock' && DOCK[di].id === 'parametres';
+  if (!(tileLaunch && SFX.has('launch')) && !toSettings) snd(1000);   // un seul son par action
   if (launched >= 0) { if (mode === 'info') open(url(P[launched]), '_blank', 'noopener'); }
   else if (zone === 'row' && view === 'projets') sel < P.length ? launch(sel, 'go') : open(REPOS, '_blank', 'noopener');
   else if (zone === 'dock') { go(DOCK[di].id); paint(); }

@@ -11,13 +11,17 @@
       { type: 'choice', k: 'accent', t: 'Couleur du curseur', d: 'Cadre de sélection et accents du menu.', opts: [['cyan', 'Cyan'], ['green', 'Vert'], ['pink', 'Rose'], ['violet', 'Violet']] }] },
     { t: 'Affichage et son', rows: [
       { type: 'toggle', k: 'clock24', t: 'Horloge 24 heures', d: 'Désactivez pour un affichage 12 heures (am / pm).' },
-      { type: 'toggle', k: 'sound', t: 'Sons de navigation', d: 'De petits bips discrets quand vous vous déplacez dans les menus.' },
+      { type: 'toggle', k: 'sound', t: 'Sons du menu', d: 'Bips de navigation et sons d’ouverture (accueil, paramètres, projets).' },
       { type: 'toggle', k: 'anim', t: 'Animations', d: 'Transitions, curseur animé et ouverture des projets.' },
       { type: 'toggle', k: 'depth', t: 'Effet de profondeur', d: 'Le fond d’écran suit légèrement la souris.' }] },
     { t: 'Démarrage', rows: [
-      { type: 'toggle', k: 'intro', t: 'Écran de démarrage', d: 'Chargement puis page d’accueil à l’ouverture du site, une fois par onglet.' }] },
+      { type: 'toggle', k: 'intro', t: 'Écran de démarrage', d: 'Chargement puis page d’accueil à l’ouverture du site, une fois par onglet.' },
+      { type: 'action', t: 'Revoir l’écran de démarrage', d: 'Relance le chargement et la page d’accueil (utile pour tester le son de l’accueil).', run: () => { P.set('intro', true); try { sessionStorage.removeItem('booted'); history.replaceState(null, '', location.pathname); } catch (_) {} location.reload(); } }] },
     { t: 'Système', rows: [
       { type: 'action', t: 'Commandes', d: 'Afficher les touches du clavier.', run: () => { closeS(); window.APP.go('commandes'); } },
+      { type: 'sound', k: 'home', t: 'Son de l’accueil' },
+      { type: 'sound', k: 'settings', t: 'Son des paramètres' },
+      { type: 'sound', k: 'launch', t: 'Son du lancement d’un projet' },
       { type: 'action', t: 'Rétablir les paramètres par défaut', d: 'Thème, fond d’écran, couleur, affichage et son.', run: () => { P.reset(); window.APP.toast('Paramètres rétablis'); } }] }
   ];
   let open = false, zone = 'nav', ci = 0, ri = 0;
@@ -27,6 +31,7 @@
   function rowHTML(r, i) {
     const sel = zone === 'pane' && i === ri ? ' sel' : '';
     if (r.type === 'wall') return `<div class="sr${sel}" data-i="${i}"><div class="st">${r.t}</div><div class="wgrid">${WALLS.map(([k, n]) => `<button class="wt${P.get('wall') === k ? ' on' : ''}" data-w="${k}"><span class="wp-${k}"></span><em>${n}</em>${P.get('wall') === k ? CHECK : ''}</button>`).join('')}</div></div>`;
+    if (r.type === 'sound') return `<div class="sr${sel}" data-i="${i}"><div class="srow"><span>${r.t}<small>${SFX.status(r.k)}</small></span><b>Tester</b></div></div>`;
     const right = r.type === 'toggle' ? `<i class="sw${P.get(r.k) ? ' on' : ''}"></i>` : r.type === 'choice' ? `<b>${lab(r)}</b>` : '<b>›</b>';
     return `<div class="sr${sel}" data-i="${i}"><div class="srow"><span>${r.t}${r.d ? `<small>${r.d}</small>` : ''}</span>${right}</div></div>`;
   }
@@ -42,11 +47,14 @@
   }
   function activate(i) {
     const r = cur().rows[i]; if (!r) return;
-    if (r.type === 'toggle') P.set(r.k, !P.get(r.k)); else if (r.type === 'action') r.run(); else step(r, 1);
-    render(true); window.APP.snd(1000);
+    if (r.type === 'toggle') P.set(r.k, !P.get(r.k));
+    else if (r.type === 'action') r.run();
+    else if (r.type === 'sound') { if (!SFX.play(r.k)) { window.APP.snd(1000); window.APP.toast('Fichier introuvable'); } }
+    else step(r, 1);
+    render(true); if (r.type !== 'sound') window.APP.snd(1000);
   }
-  function openS() { open = true; zone = 'nav'; ci = 0; ri = 0; el.hidden = false; document.body.dataset.settings = '1'; render(); window.APP.snd(1000); }
-  function closeS() { open = false; el.hidden = true; delete document.body.dataset.settings; }
+  function openS() { open = true; zone = 'nav'; ci = 0; ri = 0; el.hidden = false; document.body.dataset.settings = '1'; render(); if (!SFX.play('settings')) window.APP.snd(1000); }
+  function closeS() { SFX.stop('settings'); open = false; el.hidden = true; delete document.body.dataset.settings; }
   const back = () => { window.APP.snd(500); if (zone === 'pane') { zone = 'nav'; render(true); } else closeS(); };
   window.openSettings = openS;
 

@@ -19,6 +19,8 @@
   };
   mq.addEventListener && mq.addEventListener('change', apply);
   apply();
+  // filet de sécurité : si js/sfx.js n'est pas chargé, les appels aux sons ne font plus planter le site
+  window.SFX = { has: () => false, play: () => false, stop() {}, duration: () => 0, status: () => 'js/sfx.js non chargé : ajoute-le aux scripts de index.html (voir la ligne js/sfx.js)' };
   // effet de profondeur : le fond suit légèrement la souris
   addEventListener('mousemove', e => {
     if (!v.depth || !v.anim) return;

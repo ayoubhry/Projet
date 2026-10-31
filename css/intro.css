@@ -2,7 +2,7 @@
 #boot,#gate{position:fixed;inset:0;z-index:60;display:none;background:var(--bg);color:var(--fg)}
 html[data-stage=boot] #boot{display:grid}
 html[data-stage=gate] #gate{display:block;animation:in .5s ease both}
-html[data-stage=boot] :is(.scr,.foot,#toast),html[data-stage=gate] :is(.scr,.foot,#toast){display:none}
+html[data-stage=boot] :is(.scr,.foot),html[data-stage=gate] :is(.scr,.foot){display:none}
 
 /* --- chargement --- */
 #boot{place-content:center;justify-items:center;gap:calc(var(--u)*2.4);text-align:center;transition:opacity .4s}

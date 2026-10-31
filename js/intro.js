@@ -47,6 +47,7 @@
 
   function start() {
     if (starting) return; starting = true;
+    if (!SFX.play('home') && window.APP) window.APP.snd(1000);   // bip de secours si home.mp3 est absent
     $('#gate').classList.add('leaving');
     setTimeout(() => {
       root.dataset.stage = 'menu';

@@ -67,3 +67,6 @@ body[data-settings] #ko{display:none}
  .wgrid{grid-template-columns:repeat(2,1fr)}
  .srow span{font-size:max(15px,calc(var(--u)*3.3))}.srow small{font-size:max(12px,calc(var(--u)*2.4))}
 }
+#toast{z-index:70;max-width:90vw;text-align:center;white-space:normal}
+#toast{top:calc(var(--u)*7);bottom:auto;transform:translate(-50%,calc(var(--u)*-2))}
+#toast.on{transform:translate(-50%,0)}
